@@ -12,7 +12,8 @@
     "contextMenus",
     "declarativeNetRequest",
     "scripting",
-    "storage"
+    "storage",
+    "webRequest"
   ],
   "host_permissions": [
     "https://www.hlx.live/tools/sidekick/*",

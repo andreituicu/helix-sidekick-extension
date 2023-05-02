@@ -231,6 +231,14 @@ function checkTab(id) {
             chrome.tabs.sendMessage(id, {
               projectMatches: matches,
             });
+            chrome.webRequest.onCompleted.addListener(
+              (requestDetails) => {
+                if (requestDetails.method === 'POST' && requestDetails.url && requestDetails.url.includes('PutChanges')) {
+                  chrome.tabs.sendMessage(id, { wordDocumentChanged: true });
+                }
+              },
+              { urls: ['<all_urls>'] },
+            );
           });
         } catch (e) {
           log.error('error enabling extension', id, e);

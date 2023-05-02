@@ -68,13 +68,15 @@
     };
 
     log.debug('content.js: waiting for config matches...');
-    chrome.runtime.onMessage.addListener(({ projectMatches = [] }, { tab }) => {
-      // make sure message is from extension
-      if (!tab) {
-        window.hlx.projectMatches = projectMatches;
-        inject();
-      }
-    });
+    chrome.runtime.onMessage.addListener(
+      ({ projectMatches = [], wordDocumentChanged = false }, { tab }) => {
+        // make sure message is from extension
+        if (!tab && !wordDocumentChanged) {
+          window.hlx.projectMatches = projectMatches;
+          inject();
+        }
+      },
+    );
   } else {
     log.debug('content.js: reusing project matches', window.hlx.projectMatches);
     inject();

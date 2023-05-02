@@ -2443,6 +2443,8 @@
      */
     constructor(cfg) {
       super();
+      console.log(window.hlx);
+
       if (!this.shadowRoot) {
         this.attachShadow({ mode: 'open' });
       }
@@ -2466,6 +2468,13 @@
           },
         },
       });
+      this.renderedView = appendTag(this.shadowRoot, {
+        tag: 'div',
+        attrs: {
+          class: 'hlx-sk-rendered-view hlx-sk-hidden',
+        },
+      });
+
       this.addEventListener('contextloaded', () => {
         // containers
         this.pluginContainer = appendTag(this.root, {
@@ -2487,6 +2496,64 @@
             class: 'feature-container',
           },
         });
+
+        if (this.isEditor()) {
+          const renderButton = document.createElement('button');
+          renderButton.textContent = 'View as Rendered';
+          renderButton.addEventListener('click', () => {
+            if (this.renderedView.children.length === 0) {
+              this.renderedView.innerHTML = `<iframe src=${window.hlx.sidekick.status.preview.url}>`;
+              this.autoUpdate = {
+                enabled: true,
+                dirty: false,
+                waitTime: 1000,
+
+                increaseWaitTime() {
+                  this.waitTime += 1000;
+                },
+
+                resetWaitTime() {
+                  this.waitTime = 1000;
+                },
+              };
+            }
+
+            const reloadRenderedView = () => {
+              setTimeout(() => {
+                console.log('reloading rendered view...');
+                this.renderedView.innerHTML = '';
+                this.renderedView.innerHTML = `<iframe src=${window.hlx.sidekick.status.preview.url}>`;
+              }, 500);
+            };
+
+            const wordDocumentIframe = document.querySelector('#WopiDocWACContainer > iframe');
+            if (this.renderedView.classList.contains('hlx-sk-hidden')) {
+              this.renderedView.classList.remove('hlx-sk-hidden');
+              wordDocumentIframe.setAttribute('width', '50%');
+              this.autoUpdate.enabled = true;
+              this.addEventListener('updated', reloadRenderedView);
+            } else {
+              this.renderedView.classList.add('hlx-sk-hidden');
+              wordDocumentIframe.setAttribute('width', '100%');
+              this.autoUpdate.enabled = false;
+              this.removeEventListener('updated', reloadRenderedView);
+            }
+          });
+          this.featureContainer.appendChild(renderButton);
+
+          chrome.runtime.onMessage.addListener(({ wordDocumentChanged = false }) => {
+            // make sure message is from extension
+            if (wordDocumentChanged) {
+              console.log('word document updated...');
+              this.autoUpdate.dirty = true;
+              setTimeout(
+                () => { this.update(); },
+                1000,
+              );
+            }
+          });
+        }
+
         // info button
         appendTag(
           this.featureContainer,
@@ -2616,6 +2683,7 @@
         apiUrl.searchParams.append('editUrl', (this.isEditor() || this.isAdmin()) ? href : 'auto');
         this.status.apiUrl = apiUrl.toString();
       }
+      console.log(this.status.apiUrl);
       fetch(this.status.apiUrl, {
         ...getAdminFetchOptions(this.config),
       })

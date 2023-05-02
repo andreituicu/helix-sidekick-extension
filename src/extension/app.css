@@ -793,7 +793,6 @@
   vertical-align: top;
 }
 
-
 .hlx-sk-special-view table th {
   background-color: var(--hlx-sk-bg);
   padding: 5px;
@@ -935,4 +934,17 @@
   .hlx-sk-overlay .modal.help p.help-controls .help-actions {
       justify-content: center;
   }
+}
+
+.hlx-sk-rendered-view {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  width: 50%;
+}
+
+.hlx-sk-rendered-view > iframe {
+  width: 100%;
+  height: 100%;
 }
