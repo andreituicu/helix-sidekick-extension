@@ -9,7 +9,65 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-/* eslint-disable no-console, no-alert */
+/* eslint-disable no-console, no-alert, max-classes-per-file, no-lonely-if */
+
+class AutoUpdateTracker {
+  constructor() {
+    this.enabled = true;
+    this.dirty = false;
+    this.waitTime = 1000;
+    this.retryCount = 1;
+    this.sidekick = null;
+    this.updateDuration = 0;
+  }
+
+  setSideKick(sk) {
+    this.sidekick = sk;
+  }
+
+  isDirty() {
+    return this.dirty;
+  }
+
+  markAsDirty() {
+    this.dirty = true;
+    this.sidekick.renderedView.classList.add('dirty');
+  }
+
+  increaseWaitTime() {
+    this.waitTime += 1000;
+    this.retryCount += 1;
+  }
+
+  resetWaitTime() {
+    this.waitTime = 1000;
+    this.retryCount = 1;
+    console.log(`Last update propagation took ${this.updateDuration / 1000}`);
+    this.updateDuration = 0;
+  }
+
+  async doUpdate() {
+    if (!this.dirty) return;
+
+    this.dirty = false;
+    this.resetWaitTime();
+    await this.sidekick.update();
+    this.sidekick.renderedView.classList.remove('dirty');
+  }
+
+  retry() {
+    if (!this.dirty) return;
+    this.updateDuration += this.waitTime;
+    this.increaseWaitTime();
+    console.log(`Retrying: ${this.retryCount}. Delay: ${this.waitTime}`);
+    setTimeout(
+      () => { this.sidekick.fetchStatus(); },
+      this.waitTime,
+    );
+  }
+}
+
+const AUTOUPDATE = new AutoUpdateTracker();
 
 (() => {
   /**
@@ -836,8 +894,17 @@
     const liveLastMod = (status.live && status.live.lastModified) || null;
     if (sidekick.get('edit-preview')
       && editLastMod && (!previewLastMod || new Date(editLastMod) > new Date(previewLastMod))) {
-      sidekick.get('edit-preview').classList.add('update');
+      if (sidekick.autoUpdate && sidekick.autoUpdate.enabled) {
+        await sidekick.autoUpdate.doUpdate();
+      } else {
+        sidekick.get('edit-preview').classList.add('update');
+      }
+    } else {
+      if (sidekick.autoUpdate && sidekick.autoUpdate.enabled) {
+        sidekick.autoUpdate.retry();
+      }
     }
+
     if (sidekick.get('reload')
       && editLastMod && (!previewLastMod || new Date(editLastMod) > new Date(previewLastMod))) {
       sidekick.get('reload').classList.add('update');
@@ -2502,52 +2569,50 @@
           renderButton.textContent = 'View as Rendered';
           renderButton.addEventListener('click', () => {
             if (this.renderedView.children.length === 0) {
-              this.renderedView.innerHTML = `<iframe src=${window.hlx.sidekick.status.preview.url}>`;
-              this.autoUpdate = {
-                enabled: true,
-                dirty: false,
-                waitTime: 1000,
-
-                increaseWaitTime() {
-                  this.waitTime += 1000;
-                },
-
-                resetWaitTime() {
-                  this.waitTime = 1000;
-                },
-              };
+              this.renderedView.innerHTML = `<iframe src="${window.hlx.sidekick.status.preview.url}" name="${Date.now()}">`;
             }
-
-            const reloadRenderedView = () => {
-              setTimeout(() => {
-                console.log('reloading rendered view...');
-                this.renderedView.innerHTML = '';
-                this.renderedView.innerHTML = `<iframe src=${window.hlx.sidekick.status.preview.url}>`;
-              }, 500);
-            };
 
             const wordDocumentIframe = document.querySelector('#WopiDocWACContainer > iframe');
             if (this.renderedView.classList.contains('hlx-sk-hidden')) {
               this.renderedView.classList.remove('hlx-sk-hidden');
               wordDocumentIframe.setAttribute('width', '50%');
               this.autoUpdate.enabled = true;
-              this.addEventListener('updated', reloadRenderedView);
             } else {
               this.renderedView.classList.add('hlx-sk-hidden');
               wordDocumentIframe.setAttribute('width', '100%');
               this.autoUpdate.enabled = false;
-              this.removeEventListener('updated', reloadRenderedView);
             }
           });
           this.featureContainer.appendChild(renderButton);
 
+          const reloadRenderedView = () => {
+            setTimeout(() => {
+              console.log('reloading rendered view...');
+              this.renderedView.innerHTML = '';
+              this.renderedView.innerHTML = `<iframe src="${window.hlx.sidekick.status.preview.url}" name="${Date.now()}">`;
+            }, 1000);
+          };
+          this.addEventListener('updated', reloadRenderedView);
+
+          AUTOUPDATE.setSideKick(this);
+          this.autoUpdate = AUTOUPDATE;
+
+          console.log('adding message listener...');
           chrome.runtime.onMessage.addListener(({ wordDocumentChanged = false }) => {
             // make sure message is from extension
             if (wordDocumentChanged) {
               console.log('word document updated...');
-              this.autoUpdate.dirty = true;
+              if (!this.autoUpdate
+                || !this.autoUpdate.enabled
+                || this.autoUpdate.isDirty()
+              ) {
+                // auto update not enabled or already in progress
+                return;
+              }
+              this.autoUpdate.markAsDirty();
+              console.log('marked as dirty...');
               setTimeout(
-                () => { this.update(); },
+                () => { this.fetchStatus(); },
                 1000,
               );
             }
@@ -2666,6 +2731,7 @@
      * @returns {Sidekick} The sidekick
      */
     async fetchStatus(refreshLocation) {
+      console.log('fetching status...');
       if (refreshLocation) {
         this.location = getLocation();
       }
