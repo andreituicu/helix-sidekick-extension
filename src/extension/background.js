@@ -233,7 +233,11 @@ function checkTab(id) {
             });
             chrome.webRequest.onCompleted.addListener(
               (requestDetails) => {
-                if (requestDetails.method === 'POST' && requestDetails.url && requestDetails.url.includes('AutoSave')) {
+                if (requestDetails.method === 'POST' && requestDetails.url
+                  && (
+                    requestDetails.url.includes('AutoSave')
+                    || requestDetails.url.includes('save')
+                  )) {
                   chrome.tabs.sendMessage(id, { wordDocumentChanged: true });
                 }
               },

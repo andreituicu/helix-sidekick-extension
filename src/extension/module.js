@@ -51,8 +51,8 @@ class AutoUpdateTracker {
 
     this.dirty = false;
     this.resetWaitTime();
+    console.log('did an update');
     await this.sidekick.update();
-    this.sidekick.renderedView.classList.remove('dirty');
   }
 
   retry() {
@@ -2510,7 +2510,12 @@ const AUTOUPDATE = new AutoUpdateTracker();
      */
     constructor(cfg) {
       super();
-      console.log(window.hlx);
+      if (/* this.isEditor() && */ !document.querySelector('#WopiDocWACContainer')) {
+        document.querySelector('body').innerHTML = `<div id="WopiDocWACContainer">
+            <iframe src="${window.location.href}" width="100%"/>
+          </div>`;
+        document.querySelector('#WopiDocWACContainer iframe').style.height = '100vh';
+      }
 
       if (!this.shadowRoot) {
         this.attachShadow({ mode: 'open' });
@@ -2570,6 +2575,13 @@ const AUTOUPDATE = new AutoUpdateTracker();
           renderButton.addEventListener('click', () => {
             if (this.renderedView.children.length === 0) {
               this.renderedView.innerHTML = `<iframe src="${window.hlx.sidekick.status.preview.url}" name="${Date.now()}">`;
+              appendTag(document.querySelector('head'), {
+                tag: 'link',
+                attrs: {
+                  rel: 'stylesheet',
+                  href: `${this.config.scriptRoot}/sideBySide.css`,
+                },
+              });
             }
 
             const wordDocumentIframe = document.querySelector('#WopiDocWACContainer > iframe');
@@ -2586,11 +2598,27 @@ const AUTOUPDATE = new AutoUpdateTracker();
           this.featureContainer.appendChild(renderButton);
 
           const reloadRenderedView = () => {
-            setTimeout(() => {
+            setTimeout(async () => {
               console.log('reloading rendered view...');
-              this.renderedView.innerHTML = '';
-              this.renderedView.innerHTML = `<iframe src="${window.hlx.sidekick.status.preview.url}" name="${Date.now()}">`;
-            }, 1000);
+              console.log(window.hlx.sidekick.status.preview.url);
+              await fetch(window.hlx.sidekick.status.preview.url, { cache: 'reload' });
+
+              const newIframe = document.createElement('iframe');
+              newIframe.setAttribute('src', `${window.hlx.sidekick.status.preview.url}?refresh=${Date.now()}`);
+              newIframe.setAttribute('name', Date.now());
+
+              const previousFrames = [...this.renderedView.children];
+              this.renderedView.appendChild(newIframe);
+              setTimeout(() => {
+                previousFrames.forEach((frame) => {
+                  frame.remove();
+                });
+
+                if (!this.autoUpdate.isDirty()) {
+                  this.renderedView.classList.remove('dirty');
+                }
+              }, 1700);
+            });
           };
           this.addEventListener('updated', reloadRenderedView);
 
@@ -2612,8 +2640,8 @@ const AUTOUPDATE = new AutoUpdateTracker();
               this.autoUpdate.markAsDirty();
               console.log('marked as dirty...');
               setTimeout(
-                () => { this.fetchStatus(); },
-                1000,
+                async () => { await this.autoUpdate.doUpdate(); },
+                1500,
               );
             }
           });

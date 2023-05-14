@@ -48,7 +48,8 @@
         "sidekick.js",
         "utils.js",
         "view/json.js",
-        "view-doc-source/js/content.js"
+        "view-doc-source/js/content.js",
+        "sideBySide.css"
       ],
       "matches": [
         "<all_urls>"
