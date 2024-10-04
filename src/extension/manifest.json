@@ -58,6 +58,7 @@
         "utils.js",
         "rum.js",
         "view/json/json.html",
+        "view/lhs/lhs.html",
         "view-doc-source/js/content.js"
       ],
       "matches": [

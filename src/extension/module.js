@@ -699,6 +699,12 @@ import sampleRUM from './rum.js';
     // default views
     let views = [
       {
+        // TODO change to /.psi/** for https://github.com/adobe/helix-admin/pull/1676/files#diff-805519f02bf2d2fef8910571492bec88dbe39f482e21f8b57de915b157f871ffR123
+        path: '/psi/**',
+        viewer: `${scriptRoot}/view/lhs/lhs.html`,
+        title: (sk) => i18n(sk, 'lhs_view_description'),
+      },
+      {
         path: '**.json',
         viewer: `${scriptRoot}/view/json/json.html`,
         title: (sk) => i18n(sk, 'json_view_description'),

@@ -499,6 +499,9 @@
   "json_view_description": {
     "message": "User-friendly data rendition."
   },
+  "lhs_view_description": {
+    "message": "Google Lighouse Report Viewer"
+  },
   "live": {
     "message": "Live"
   },
